@@ -1,0 +1,20 @@
+# Planet's Properties
+# Template for vspace
+sName		    planet		   # Body's name
+saModules   eqtide   # Modules to apply to this body
+
+# Physical Parameters, EqTide will set dRotPeriod via bForceEqSpin
+dMass		     -4.5  # Mass, negative -> Earth masses
+dRadius      -1.75  # Radius, negatice -> Earth radii
+dRadGyra	   0.5	   # Radius of gyration (moment of inertia constant)
+
+dObliquity   0      # Obliquity
+
+# Orbital Parameters will be set by vspace
+
+# EqTide Parameters are modern Earth's
+#dTidalQ       12   # Tidal Q (assumed)
+dTidalTau     -638    # Tidal Time Lag (negative for seconds), from Lambeck 1977
+dK2           0.299   # Love Number of degree 2
+saTidePerts   star    # Name of tidal perturber (only central body may have >1)
+bForceEqSpin  1       # Force planet's rotation period to be tidally locked

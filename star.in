@@ -1,0 +1,20 @@
+# Star's properties -- this example is for Teegarden's Star (Zechmesiter et al. 2019)
+sName		      star		# Body's name
+saModules     eqtide  # List of modules to apply to this body
+
+# Physical Parameters
+dMass		      0.08    # Mass (negative for Earth masses)
+dRadGyra	    0.27		# Radius of gyration (moment of inertia constant)
+dRadius       5e-4    # Radius (negative for AU)
+dRotPeriod    -0.47   # Rotation period (negative -for days)
+dObliquity    0       # Obliquity
+
+# EqTide Parameters
+sTideModel    t8     # Tidal model: p2 (CPL), t8 (CTL), or DB15
+dTidalTau     -0.01   # Time lag (negative for seconds)
+#dTidalQ       1e6    # Tidal Q
+dK2           1.5     # Love number of degree 2
+saTidePerts   planet  # Names of perturbing bodies (only central body may have >1)
+
+# If no output selected, only a log file is written (assuming bDoLog is set to 1)
+#saOutputOrder
