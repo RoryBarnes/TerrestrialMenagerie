@@ -10,6 +10,19 @@ try:
 except:
     print('Cannot import vplot -- please install')
 
+# Number of dimensions
+necc=10
+nsemi=10
+minecc=0
+maxecc=0.1
+minsemi=1e-3
+maxsemi=0.05
+
+# Category limits
+vlim = 300         # Tidal Venus, W/^2
+iolim = 2           # Super-Io
+telim = 0.04        # Tidal Earth
+
 # Check correct number of arguments
 if (len(sys.argv) != 2):
     print('ERROR: Incorrect number of arguments.')
@@ -20,11 +33,11 @@ if (sys.argv[1] != 'pdf' and sys.argv[1] != 'png'):
     print('Options are: pdf, png')
     exit(1)
 
-# Number of dimensions
-necc=10
-nsemi=10
+AUM = 1.49597870700e11
 
 # Write vspace.in
+# Note the plotting expects eccentricity to be first parameter in the data
+# directory. Make sure the dimensions work for the plot.
 vspace = open('vspace.in','w')
 vspace.write('srcfolder  .\n')
 vspace.write('destfolder data\n')
@@ -35,8 +48,8 @@ vspace.write('\n')
 vspace.write('file   star.in\n')
 vspace.write('\n')
 vspace.write('file   planet.in\n')
-vspace.write('dEcc  [0,0.5,n'+repr(necc)+'] e\n')
-vspace.write('dSemi [1e-3,0.1,n'+repr(nsemi)+'] a\n')
+vspace.write('dEcc  ['+repr(minecc)+','+repr(maxecc)+',n'+repr(necc)+'] e\n')
+vspace.write('dSemi ['+repr(minsemi)+','+repr(maxsemi)+',n'+repr(nsemi)+'] a\n')
 vspace.close()
 
 # Now build input files
@@ -49,7 +62,21 @@ print('done.')
 # Now run, analyze output and store for plotting
 ecc=[0 for j in range(necc)]
 semi=[0 for j in range(nsemi)]
+hzem=[0 for j in range(necc)]
+hzmoistg=[0 for j in range(necc)]
+hzmaxg=[0 for j in range(necc)]
+hzrv=[0 for j in range(necc)]
 heat=[[0 for j in range(nsemi)] for k in range(necc)]
+instell=[[0 for j in range(nsemi)] for k in range(necc)]
+totflux = [[0 for j in range(nsemi)] for k in range(necc)]
+
+# Category boundaries
+tv=[-1 for j in range(necc)]
+venus=[-1 for j in range(necc)]
+io=[-1 for j in range(necc)]
+te=[-1 for j in range(necc)]
+snow=[0 for j in range(necc)]
+xmax=[maxsemi for j in range(necc)]
 
 result = subp.run("ls -d data/TideMen*", shell=True, stdout=subp.PIPE).stdout.decode('utf-8')
 dirs=result.split()
@@ -72,38 +99,117 @@ for dir in dirs:
         sys.stdout.flush()
         sys.stderr.flush()
         # Now search for planet's parameters
-        found=0
+        found1=0
+        found2=0
         for line in log:
             words=line.split()
             if len(words) > 2:
+                if (words[1] == "BODY:") and (words[2] == "star"):
+                    found1=1
+                if (words[0] == "(HZLimRecVenus)") and (found1 == 1):
+                    hzrv[iEcc] = float(words[7])/AUM
+                if (words[0] == "(HZLimMoistGreenhouse)") and (found1 == 1):
+                    hzmoistg[iEcc] = float(words[7])/AUM
+                if (words[0] == "(HZLimMaxGreenhouse)") and (found1 == 1):
+                    hzmaxg[iEcc] = float(words[7])/AUM
+                if (words[0] == "(HZLimEarlyMars)") and (found1 == 1):
+                    hzem[iEcc] = float(words[7])/AUM
+
+
                 if (words[1] == "BODY:") and (words[2] == "planet"):
-                    found=1
-                if (words[0] == "(Eccentricity)") and (found == 1):
+                    found2=1
+                if (words[0] == "(Eccentricity)") and (found2 == 1):
                     ecc[iEcc] = float(words[4])
-                if (words[0] == "(SemiMajorAxis)") and (found == 1):
-                    semi[iSemi] = float(words[4])/1.49597870700e11
-                if (words[0] == "(SurfEnFluxEqtide)") and (found == 1):
+                if (words[0] == "(SemiMajorAxis)") and (found2 == 1):
+                    semi[iSemi] = float(words[4])/AUM
+                if (words[0] == "(SurfEnFluxEqtide)") and (found2 == 1):
                     heat[iEcc][iSemi] = float(words[10])
+                if (words[0] == "(Instellation)") and (found2 == 1):
+                    instell[iEcc][iSemi] = float(words[6])
+
+        # Now calculate Semi's of each category boundary
+        totflux[iEcc][iSemi] = instell[iEcc][iSemi] + heat[iEcc][iSemi]
+
+        #print(semi[iSemi],minsemi)
+        if (semi[iSemi] == minsemi):
+            heat0 = heat[iEcc][iSemi]
+            totflux0 = totflux[iEcc][iSemi]
+        else:
+            print(heat0,heat[iEcc][iSemi],vlim)
+            if (heat0 > vlim) and (heat[iEcc][iSemi] <= vlim):
+                # Tidal Venus limit
+                tv[iEcc] = semi[iSemi]
+                print(iEcc,tv[iEcc])
+                exit()
+            if (totflux0 > vlim) and (totflux[iEcc][iSemi] <= vlim):
+                venus[iEcc] = semi[iSemi]
+            if (heat0 > iolim) and (heat[iEcc][iSemi] <= iolim):
+                io[iEcc] = semi[iSemi]
+
+            if (heat0 > telim) and (heat[iEcc][iSemi] <= telim):
+                te[iEcc] = semi[iSemi]
+
+            heat0 = heat[iEcc][iSemi]
+            totflux0 = totflux[iEcc][iSemi]
+
+        # Finished all simulations for the eccentricity
+        if (tv[iEcc] == -1):
+            tv[iEcc] = maxsemi
+        if (venus[iEcc] == -1):
+            venus[iEcc] = maxsemi
+        if (io[iEcc] == -1):
+            io[iEcc] = maxsemi
+        if (te[iEcc] == -1):
+            te[iEcc] = maxsemi
+
+        # Done, move on to next semi-major axis
         iSemi += 1
         if (iSemi == nsemi):
         # New line in ecc
             iEcc += 1
             iSemi = 0
 
+# Finished all simulations
+
+
+# Now adjust HZ lims to account for eccentricity
+for iEcc in range(necc):
+    hzrv[iEcc] = hzrv[iEcc]/((1-ecc[iEcc]**2)**0.25)
+    hzmoistg[iEcc] = hzmoistg[iEcc]/((1-ecc[iEcc]**2)**0.25)
+    hzmaxg[iEcc] = hzmaxg[iEcc]/((1-ecc[iEcc]**2)**0.25)
+    hzem[iEcc] = hzem[iEcc]/((1-ecc[iEcc]**2)**0.25)
+
+    snow[iEcc] = max(hzmaxg[iEcc],te[iEcc])
+    print(iEcc,hzmaxg[iEcc],snow[iEcc],te[iEcc],venus[iEcc],io[iEcc])
+
 # Arrays ecc,obl,heat now contain the data to make the figure
 
 plt.ylabel('Eccentricity',fontsize=20)
-plt.xlabel('Semi-Major AXis (AU)',fontsize=20)
+plt.xlabel('Semi-Major Axis (AU)',fontsize=20)
 plt.tick_params(axis='both', labelsize=20)
 
 #plt.xscale('log')
 #plt.yscale('log')
-plt.xlim(1e-3,0.1)
-plt.ylim(0,0.5)
+plt.xlim(minsemi,maxsemi)
+plt.ylim(minecc,maxecc)
 
-ContSet = plt.contour(semi,ecc,heat,5,colors='black',linestyles='solid',
-                      levels=[0.04,2,300],linewidths=3,origin='lower')
-plt.clabel(ContSet,fmt="%d",inline=True,fontsize=18)
+#ContSet = plt.contour(semi,ecc,heat,5,colors='black',linestyles='solid',
+#                      levels=[0.04,2,300],linewidths=3,origin='lower')
+#plt.clabel(ContSet,fmt="%d",inline=True,fontsize=18)
+
+# Now fill in with colors
+plt.contourf(semi,ecc,heat,5,levels=[300,1e100],colors=vpl.colors.red)
+plt.contourf(semi,ecc,heat,5,levels=[2,300],colors=vpl.colors.orange)
+plt.contourf(semi,ecc,heat,5,levels=[0.04,2],colors=vpl.colors.dark_blue)
+plt.contourf(semi,ecc,heat,5,levels=[0,0.04],colors='green')
+#plt.contourf(semi,min(hmaxg,))
+plt.fill_betweenx(ecc,snow,xmax,color='gray')
+
+
+plt.plot(hzrv,ecc,linestyle='dashed',color='k')
+plt.plot(hzmoistg,ecc,linestyle='solid',color='k')
+plt.plot(hzmaxg,ecc,linestyle='solid',color='k')
+plt.plot(hzem,ecc,linestyle='dashed',color='k')
 
 plt.tight_layout()
 

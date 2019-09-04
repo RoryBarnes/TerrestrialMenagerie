@@ -1,6 +1,6 @@
 # Star's properties -- this example is for Teegarden's Star (Zechmesiter et al. 2019)
 sName		      star		# Body's name
-saModules     eqtide  # List of modules to apply to this body
+saModules     stellar eqtide  # List of modules to apply to this body
 
 # Physical Parameters
 dMass		      0.08    # Mass (negative for Earth masses)
@@ -8,6 +8,7 @@ dRadGyra	    0.27		# Radius of gyration (moment of inertia constant)
 dRadius       5e-4    # Radius (negative for AU)
 dRotPeriod    -0.47   # Rotation period (negative -for days)
 dObliquity    0       # Obliquity
+dAge          -5      # Age (negative for Gyr)
 
 # EqTide Parameters
 sTideModel    t8     # Tidal model: p2 (CPL), t8 (CTL), or DB15
