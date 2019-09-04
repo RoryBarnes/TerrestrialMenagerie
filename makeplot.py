@@ -11,8 +11,8 @@ except:
     print('Cannot import vplot -- please install')
 
 # Number of dimensions
-necc=10
-nsemi=10
+necc=100
+nsemi=100
 minecc=0
 maxecc=0.1
 minsemi=1e-3
@@ -76,10 +76,14 @@ venus=[-1 for j in range(necc)]
 io=[-1 for j in range(necc)]
 te=[-1 for j in range(necc)]
 snow=[0 for j in range(necc)]
+se=[0 for j in range(necc)]
+venus=[0 for j in range(necc)]
 xmax=[maxsemi for j in range(necc)]
 
-result = subp.run("ls -d data/TideMen*", shell=True, stdout=subp.PIPE).stdout.decode('utf-8')
-dirs=result.split()
+#result = subp.run("ls -d data/TideMen*", shell=True, stdout=subp.PIPE).stdout.decode('utf-8')
+#dirs=result.split()
+
+dirs = ['data/TideMene' for j in range(necc*nsemi)]
 
 # Dirs contains array of directories to run
 
@@ -88,6 +92,16 @@ iSemi=0
 
 for dir in dirs:
     if dir != "0":  # WTF?
+        if (iEcc < 10):
+            epad = "0"
+        else:
+            epad = ""
+        if (iSemi < 10):
+            apad = "0"
+        else:
+            apad = ""
+        dir = dir + epad+ repr(iEcc)+'_a'+apad+repr(iSemi)
+
         cmd = "cd "+dir+"; vplanet vpl.in >& output"
         subp.call(cmd, shell=True)
         # At this point the log file has been generated
@@ -97,7 +111,6 @@ for dir in dirs:
 
         print(dir)
         sys.stdout.flush()
-        sys.stderr.flush()
         # Now search for planet's parameters
         found1=0
         found2=0
@@ -115,7 +128,6 @@ for dir in dirs:
                 if (words[0] == "(HZLimEarlyMars)") and (found1 == 1):
                     hzem[iEcc] = float(words[7])/AUM
 
-
                 if (words[1] == "BODY:") and (words[2] == "planet"):
                     found2=1
                 if (words[0] == "(Eccentricity)") and (found2 == 1):
@@ -130,47 +142,42 @@ for dir in dirs:
         # Now calculate Semi's of each category boundary
         totflux[iEcc][iSemi] = instell[iEcc][iSemi] + heat[iEcc][iSemi]
 
-        #print(semi[iSemi],minsemi)
+    # Done, move on to next semi-major axis
+    iSemi += 1
+    if (iSemi == nsemi):
+        # If we've reached the end of semis, increment ecc and reset semi
+        iEcc += 1
+        iSemi = 0
+
+# Done with simualtiones, Now find transitions
+for iEcc in range(necc):
+    for iSemi in range(nsemi):
         if (semi[iSemi] == minsemi):
             heat0 = heat[iEcc][iSemi]
             totflux0 = totflux[iEcc][iSemi]
         else:
-            print(heat0,heat[iEcc][iSemi],vlim)
             if (heat0 > vlim) and (heat[iEcc][iSemi] <= vlim):
                 # Tidal Venus limit
                 tv[iEcc] = semi[iSemi]
-                print(iEcc,tv[iEcc])
-                exit()
             if (totflux0 > vlim) and (totflux[iEcc][iSemi] <= vlim):
                 venus[iEcc] = semi[iSemi]
             if (heat0 > iolim) and (heat[iEcc][iSemi] <= iolim):
                 io[iEcc] = semi[iSemi]
-
             if (heat0 > telim) and (heat[iEcc][iSemi] <= telim):
                 te[iEcc] = semi[iSemi]
 
             heat0 = heat[iEcc][iSemi]
             totflux0 = totflux[iEcc][iSemi]
 
-        # Finished all simulations for the eccentricity
-        if (tv[iEcc] == -1):
-            tv[iEcc] = maxsemi
-        if (venus[iEcc] == -1):
-            venus[iEcc] = maxsemi
-        if (io[iEcc] == -1):
-            io[iEcc] = maxsemi
-        if (te[iEcc] == -1):
-            te[iEcc] = maxsemi
-
-        # Done, move on to next semi-major axis
-        iSemi += 1
-        if (iSemi == nsemi):
-        # New line in ecc
-            iEcc += 1
-            iSemi = 0
-
-# Finished all simulations
-
+    # Through all semis for this ecc
+    if (tv[iEcc] == -1):
+        tv[iEcc] = maxsemi
+    if (venus[iEcc] == -1):
+        venus[iEcc] = maxsemi
+    if (io[iEcc] == -1):
+        io[iEcc] = maxsemi
+    if (te[iEcc] == -1):
+        te[iEcc] = maxsemi
 
 # Now adjust HZ lims to account for eccentricity
 for iEcc in range(necc):
@@ -179,8 +186,13 @@ for iEcc in range(necc):
     hzmaxg[iEcc] = hzmaxg[iEcc]/((1-ecc[iEcc]**2)**0.25)
     hzem[iEcc] = hzem[iEcc]/((1-ecc[iEcc]**2)**0.25)
 
-    snow[iEcc] = max(hzmaxg[iEcc],te[iEcc])
-    print(iEcc,hzmaxg[iEcc],snow[iEcc],te[iEcc],venus[iEcc],io[iEcc])
+    # Assumes minecc = 0!
+    if (iEcc == 0):
+        se[iEcc]=hzmaxg[iEcc]
+        snow[iEcc]=hzmaxg[iEcc]
+    else:
+        snow[iEcc] = max(hzmaxg[iEcc],te[iEcc])
+        se[iEcc] = max(hzmaxg[iEcc],io[iEcc])
 
 # Arrays ecc,obl,heat now contain the data to make the figure
 
@@ -198,22 +210,23 @@ plt.ylim(minecc,maxecc)
 #plt.clabel(ContSet,fmt="%d",inline=True,fontsize=18)
 
 # Now fill in with colors
-plt.contourf(semi,ecc,heat,5,levels=[300,1e100],colors=vpl.colors.red)
 plt.contourf(semi,ecc,heat,5,levels=[2,300],colors=vpl.colors.orange)
+plt.fill_betweenx(ecc,0,hzmoistg,color=vpl.colors.purple)
+plt.contourf(semi,ecc,heat,5,levels=[300,1e100],colors=vpl.colors.red)
 plt.contourf(semi,ecc,heat,5,levels=[0.04,2],colors=vpl.colors.dark_blue)
 plt.contourf(semi,ecc,heat,5,levels=[0,0.04],colors='green')
 #plt.contourf(semi,min(hmaxg,))
+plt.fill_betweenx(ecc,se,xmax,color=vpl.colors.pale_blue)
 plt.fill_betweenx(ecc,snow,xmax,color='gray')
-
 
 plt.plot(hzrv,ecc,linestyle='dashed',color='k')
 plt.plot(hzmoistg,ecc,linestyle='solid',color='k')
-plt.plot(hzmaxg,ecc,linestyle='solid',color='k')
 plt.plot(hzem,ecc,linestyle='dashed',color='k')
+plt.plot(hzmaxg,ecc,linestyle='solid',color='k')
 
 plt.tight_layout()
 
-base="TidalMenagerie"
+base="TerrestrialMenagerie"
 
 if (sys.argv[1] == 'pdf'):
     file = base+'.pdf'
