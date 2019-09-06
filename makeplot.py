@@ -11,8 +11,8 @@ except:
     print('Cannot import vplot -- please install')
 
 # Number of dimensions
-necc=100
-nsemi=100
+necc=10
+nsemi=10
 minecc=0
 maxecc=0.1
 minsemi=1e-3
@@ -92,14 +92,18 @@ iSemi=0
 
 for dir in dirs:
     if dir != "0":  # WTF?
-        if (iEcc < 10):
-            epad = "0"
-        else:
-            epad = ""
-        if (iSemi < 10):
-            apad = "0"
-        else:
-            apad = ""
+        #if (iEcc < 10):
+        #    epad = "00"
+        #elif (iEcc < 100):
+        #    epad = "0"
+        #else:
+        epad = ""
+        #if (iSemi < 10):
+        #    apad = "00"
+        #elif (iSemi < 100):
+        #apad = "0"
+        #else:
+        apad = ""
         dir = dir + epad+ repr(iEcc)+'_a'+apad+repr(iSemi)
 
         cmd = "cd "+dir+"; vplanet vpl.in >& output"
@@ -141,6 +145,7 @@ for dir in dirs:
 
         # Now calculate Semi's of each category boundary
         totflux[iEcc][iSemi] = instell[iEcc][iSemi] + heat[iEcc][iSemi]
+        print(iEcc,iSemi,totflux[iEcc][iSemi])
 
     # Done, move on to next semi-major axis
     iSemi += 1
@@ -179,6 +184,7 @@ for iEcc in range(necc):
     if (te[iEcc] == -1):
         te[iEcc] = maxsemi
 
+fout = open('menagerie.out','w')
 # Now adjust HZ lims to account for eccentricity
 for iEcc in range(necc):
     hzrv[iEcc] = hzrv[iEcc]/((1-ecc[iEcc]**2)**0.25)
@@ -193,6 +199,9 @@ for iEcc in range(necc):
     else:
         snow[iEcc] = max(hzmaxg[iEcc],te[iEcc])
         se[iEcc] = max(hzmaxg[iEcc],io[iEcc])
+    fout.write("%f %f %f %f %f %f %f %f %f %f %f\n" % (ecc[iEcc],tv[iEcc],venus[iEcc],io[iEcc],te[iEcc],snow[iEcc],se[iEcc],hzrv[iEcc],hzmoistg[iEcc],hzmaxg[iEcc],hzem[iEcc]))
+
+fout.close()
 
 # Arrays ecc,obl,heat now contain the data to make the figure
 
@@ -210,11 +219,12 @@ plt.ylim(minecc,maxecc)
 #plt.clabel(ContSet,fmt="%d",inline=True,fontsize=18)
 
 # Now fill in with colors
-plt.contourf(semi,ecc,heat,5,levels=[2,300],colors=vpl.colors.orange)
-plt.fill_betweenx(ecc,0,hzmoistg,color=vpl.colors.purple)
-plt.contourf(semi,ecc,heat,5,levels=[300,1e100],colors=vpl.colors.red)
+plt.contourf(semi,ecc,heat,5,levels=[2,300],colors='yellow')
+plt.fill_betweenx(ecc,venus,tv,color=vpl.colors.orange)
 plt.contourf(semi,ecc,heat,5,levels=[0.04,2],colors=vpl.colors.dark_blue)
 plt.contourf(semi,ecc,heat,5,levels=[0,0.04],colors='green')
+plt.fill_betweenx(ecc,0,hzmoistg,color=vpl.colors.purple)
+plt.contourf(semi,ecc,heat,5,levels=[300,1e100],colors=vpl.colors.red)
 #plt.contourf(semi,min(hmaxg,))
 plt.fill_betweenx(ecc,se,xmax,color=vpl.colors.pale_blue)
 plt.fill_betweenx(ecc,snow,xmax,color='gray')
